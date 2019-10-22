@@ -3,14 +3,13 @@ extern crate glium_text;
 extern crate cgmath;
 
 use std::path::Path;
-use glium::Surface;
-use glium::glutin::{ControlFlow, Event, self, WindowEvent};
+use glium::{glutin, Surface};
 
 fn main() {
     use std::fs::File;
 
-    let mut event_loop = glutin::EventsLoop::new();
-    let window = glutin::WindowBuilder::new().with_dimensions((1024, 768).into());
+    let event_loop = glutin::event_loop::EventLoop::new();
+    let window = glutin::window::WindowBuilder::new().with_inner_size((1024, 768).into());
     let context = glutin::ContextBuilder::new();
     let display = glium::Display::new(window, context, &event_loop).unwrap();
     let system = glium_text::TextSystem::new(&display);
@@ -29,7 +28,7 @@ fn main() {
 
     println!("Type with your keyboard");
 
-    event_loop.run_forever(|event| {
+    event_loop.run(move |event, _, control_flow| {
         let text = glium_text::TextDisplay::new(&system, &font, &buffer);
 
         let (w, h) = display.get_framebuffer_dimensions();
@@ -46,15 +45,18 @@ fn main() {
         glium_text::draw(&text, &system, &mut target, matrix, (1.0, 1.0, 0.0, 1.0));
         target.finish().unwrap();
 
-        if let Event::WindowEvent {event, ..} = event {
-            match event {
-                WindowEvent::ReceivedCharacter('\r') => buffer.clear(),
-                WindowEvent::ReceivedCharacter(c) if c as u32 == 8 => { buffer.pop(); },
-                WindowEvent::ReceivedCharacter(chr) => buffer.push(chr),
-                WindowEvent::CloseRequested => return ControlFlow::Break,
-                _ => ()
+        match event {
+            glutin::event::Event::WindowEvent { event, .. } => match event {
+                glutin::event::WindowEvent::ReceivedCharacter('\r') => buffer.clear(),
+                glutin::event::WindowEvent::ReceivedCharacter(c) if c as u32 == 8 => { buffer.pop(); },
+                glutin::event::WindowEvent::ReceivedCharacter(chr) => buffer.push(chr),
+                glutin::event::WindowEvent::CloseRequested => {
+                    *control_flow = glutin::event_loop::ControlFlow::Exit;
+                    return;
+                },
+                _ => {}
             }
+            _ => {}
         }
-        ControlFlow::Continue
     });
 }
